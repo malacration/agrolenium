@@ -1,13 +1,18 @@
 import com.codeborne.selenide.Condition.exactText
 import com.codeborne.selenide.Condition.visible
 import com.codeborne.selenide.Configuration
+import com.codeborne.selenide.ElementsCollection
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import com.codeborne.selenide.Selenide.*
 import com.codeborne.selenide.Selectors.byPartialLinkText
+import config.DogConfiguration
 import org.openqa.selenium.chrome.ChromeOptions
+import repositories.DietaRepository
 import kotlin.test.AfterTest
-
+import kotlin.test.assertEquals
+import com.codeborne.selenide.Selenide.`$$`
+import com.codeborne.selenide.SelenideElement
 
 class TesteInicial {
     companion object {
@@ -81,6 +86,88 @@ class TesteInicial {
         Thread.sleep(1000) // 1s pause after click
 
         `$`(".btn-action-refresh").shouldBe(visible).click()
+
+        val dietaID = `$`("section.form-field-section:nth-child(2) > div:nth-child(3) > span:nth-child(1)").shouldBe(visible).text()
+        println("ID da dieta na tela = $dietaID")
+
+        val TotalDieta = `$`("section.form-field-section:nth-child(15) > div:nth-child(3)").shouldBe(visible).text()
+        println("Total da dieta na tela = $TotalDieta")
+        val totalSegundos = 2 * 60
+        for (restante in totalSegundos downTo 1) {
+            println("Aguardando verificação no banco... faltam ${restante}s")
+            Thread.sleep(1000)
+        }
+
+        val dietaIdInt = dietaID.trim().toInt()
+
+// total da tela -> normalizar para Double
+        val totalUi = TotalDieta
+            .replace("R$", "")  // se tiver símbolo de moeda
+            .replace(" ", "")
+            .replace(".", "")   // tira separador de milhar
+            .replace(",", ".")  // vírgula decimal -> ponto
+            .toDouble()
+
+        println("Total da dieta na tela (double) = $totalUi")
+
+// total no banco
+        val totalDb = DietaRepository.buscarTotalPorDieta(dietaIdInt)
+            ?: error("Nenhum total encontrado no banco para dieta ID=$dietaIdInt")
+
+        println("Total da dieta no banco = $totalDb")
+
+        assertEquals(
+            totalDb,
+            totalUi,
+            0.01,
+            "Total da dieta diferente entre UI ($totalUi) e banco ($totalDb) para ID=$dietaIdInt"
+        )
+        val itensDb = DietaRepository.buscarItensPorDieta(dietaIdInt)
+
+// agrupa por descrição
+        val mapaDb: Map<String, Double> = itensDb
+            .groupBy { it.description }
+            .mapValues { (_, linhas) -> linhas.sumOf { it.quantity } }
+
+        println("== Itens do BANCO (por descrição) ==")
+        mapaDb.forEach { (desc, qty) ->
+            println("DB -> desc='$desc', qty=$qty")
+        }
+
+// ---- UI ----
+        val itensUi = lerItensDaTela()
+
+        val mapaUi: Map<String, Double> = itensUi
+            .groupBy { it.description }
+            .mapValues { (_, linhas) -> linhas.sumOf { it.quantity } }
+
+        println("== Itens da UI (por descrição) ==")
+        mapaUi.forEach { (desc, qty) ->
+            println("UI -> desc='$desc', qty=$qty")
+        }
+
+// ---- COMPARA ITENS ----
+        assertEquals(
+            mapaDb.keys,
+            mapaUi.keys,
+            "Descrições diferentes entre UI e banco para dieta ID=$dietaIdInt"
+        )
+
+// ---- COMPARA QUANTIDADES ----
+        mapaDb.forEach { (desc, qtyDb) ->
+            val qtyUi = mapaUi[desc]
+                ?: error("Descrição '$desc' existe no DB mas não na UI (dieta ID=$dietaIdInt)")
+
+            assertEquals(
+                qtyDb,
+                qtyUi,
+                0.01,
+                "Quantidade divergente para desc='$desc' (UI=$qtyUi, DB=$qtyDb) na dieta ID=$dietaIdInt"
+            )
+        }
+        closeWindow()
+
+
 //        #action-manager > action-view > div > div.content > header > button:nth-child(1)
 
 //        #action-manager > action-view > div > div.data-heading.panel.panel-default > div.panel-body > div > div:nth-child(1) > div > div > button.btn.btn-primary
@@ -116,4 +203,33 @@ class TesteEmcapsula(val inputSelector : String, val valueType : String, val tex
             .click()
     }
 
+}
+data class ItemUi(
+    val description: String,
+    val quantity: Double,
+)
+
+fun lerItensDaTela(): List<ItemUi> {
+    // linhas de itens – segundo tbody
+    val linhas = `$$`(".table > tbody:nth-child(2) > tr")
+    println("Qtd de linhas de itens na UI = ${linhas.size()}")
+
+    return linhas.mapIndexed { index, linha ->
+        // AJUSTA o nth-child da descrição se for outra coluna
+        val descText = linha.`$`("td:nth-child(2)").text().trim()
+        val qtyText  = linha.`$`("td:nth-child(4)").text().trim()
+
+        val qty = qtyText
+            .replace(" ", "")
+            .replace(".", "")    // milhar
+            .replace(",", ".")   // decimal
+            .toDouble()
+
+        println("UI item #$index -> desc='$descText', qty=$qty")
+
+        ItemUi(
+            description = descText,
+            quantity = qty,
+        )
+    }
 }

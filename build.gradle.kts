@@ -10,7 +10,7 @@ repositories {
 }
 
 dependencies {
-    testImplementation("com.codeborne:selenide:7.12.0")
+    implementation("com.codeborne:selenide:7.12.0")
     implementation("com.sap.cloud.db.jdbc:ngdbc:2.26.11")
     testImplementation(kotlin("test"))
 }

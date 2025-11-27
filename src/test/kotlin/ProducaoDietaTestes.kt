@@ -1,7 +1,4 @@
 import agromobi.AgromobiSession
-import agromobi.core.ButtonByTextValue
-import com.codeborne.selenide.Condition.exactText
-import com.codeborne.selenide.Condition.visible
 import com.codeborne.selenide.Configuration
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
@@ -11,12 +8,13 @@ import org.openqa.selenium.chrome.ChromeOptions
 import repositories.DietaRepository
 import kotlin.test.AfterTest
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import com.codeborne.selenide.Selenide.`$$`
 import util.waitForResult
+import kotlin.test.assertFails
 
 class TesteInicial {
     companion object {
-
         private const val producaoDieta =
             "https://gruporovema.hom.katrid.com.br/web/#/app/?view_type=list&model=confinamento.producao.dieta&menu_id=456&action=447"
         private val dogConfiguration: DogConfiguration = DogConfiguration.load()
@@ -25,7 +23,7 @@ class TesteInicial {
         @JvmStatic
         fun setup() {
             Configuration.browser = "chrome"
-            Configuration.headless = true
+            Configuration.headless = false
             Configuration.holdBrowserOpen = true
             Configuration.browserSize = "1280x800"
             Configuration.fastSetValue = true
@@ -39,13 +37,34 @@ class TesteInicial {
                 // opcional: não limpar dados ao fechar aba
                 // addArguments("profile.exit_type=Normal")
             }
-            Configuration.browserCapabilities = options
+//            Configuration.browserCapabilities = options
 
         }
     }
 
     @Test
-    fun `abre navegador e interage visivelmente`() {
+    fun `sem data nao pode cadastrar`(){
+        assertFails {
+            AgromobiSession(dogConfiguration.username,dogConfiguration.password)
+                .login()
+                .producaoDieta()
+                .criaDietaInvalidaData()
+        }
+
+    }
+
+    @Test
+    fun `sem filial nao pode cadastrar`(){
+        assertFails {
+            AgromobiSession(dogConfiguration.username,dogConfiguration.password)
+                .login()
+                .producaoDieta()
+                .criaDietaInvalidaSemFilial()
+        }
+    }
+
+    @Test
+    fun `cadastro valido com integração ao SAP`() {
 
         var dietaIdInt : Int = -1
         var totalUi : Double = -1.0
@@ -118,9 +137,6 @@ class TesteInicial {
                 "Quantidade divergente para desc='$desc' (UI=$qtyUi, DB=$qtyDb) na dieta ID=$dietaIdInt"
             )
         }
-        closeWindow()
-
-        Thread.sleep(50000)
     }
 
     @AfterTest
@@ -128,9 +144,6 @@ class TesteInicial {
         closeWindow()
     }
 }
-
-
-
 
 data class ItemUi(
     val description: String,

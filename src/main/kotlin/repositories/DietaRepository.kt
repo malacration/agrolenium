@@ -64,7 +64,7 @@ object DietaRepository {
                 ) = ?
         """.trimIndent()
 
-        return HanaJdbcClient.select(
+        return HanaJdbcClient().select(
             sql = sql,
             bind = { setInt(1, dietaId) },
         ) { rs ->
@@ -107,7 +107,7 @@ object DietaRepository {
           AND T0."DocDate" > '2025-11-01'
     """.trimIndent()
 
-        val resultados = HanaJdbcClient.select(
+        val resultados = HanaJdbcClient().select(
             sql = sql,
             bind = { setInt(1, dietaId) },
         ) { rs ->
@@ -117,6 +117,5 @@ object DietaRepository {
         }
 
         return resultados.firstOrNull()
-
     }
 }

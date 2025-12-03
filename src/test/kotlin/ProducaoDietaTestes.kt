@@ -62,7 +62,15 @@ class TesteInicial {
                 .criaDietaInvalidaSemFilial()
         }
     }
+    @Test
+    fun `VALIDO`() {
 
+        AgromobiSession(dogConfiguration.username, dogConfiguration.password)
+            .login()
+            .producaoDieta()
+            .criaDietaValida()
+
+    }
     @Test
     fun `cadastro valido com integração ao SAP`() {
 

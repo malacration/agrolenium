@@ -60,7 +60,7 @@ object DietaRepository {
                             IN T0."Comments" 
                             GROUP 1
                         ) AS INTEGER
-                    )
+                    ) AND T0."DocDate" > '2025-12-01'
                 ) = ?
         """.trimIndent()
 
@@ -104,7 +104,7 @@ object DietaRepository {
                     ) AS INTEGER
                 )
             ) = ?
-          AND T0."DocDate" > '2025-11-01'
+          AND T0."DocDate" > '2025-12-01'
     """.trimIndent()
 
         val resultados = HanaJdbcClient().select(
